@@ -1642,8 +1642,8 @@ object Main extends App {
       }
     }
   }
-  // scalastyle:off method.length
-  def siteServices : Route = pathPrefix("site") {
+  // scalastyle:off method.length cyclomatic.complexity
+  def siteServices: Route = pathPrefix("site") {
     get {
       parameters('viewLevel.as[String]) {
         (viewLevel) =>
@@ -1651,7 +1651,7 @@ object Main extends App {
             logger.info("View level is..." + viewLevel)
             //Instead of applying map and flat operations at distinct  places,flatMap used directly though container holds only List[Nodes]
             //Use of map here produces results like List[Option[Site]] but List[Site1] would be better option for next operations.
-            Neo4jRepository.getNodesByLabel("Site1").flatMap{ siteNode =>
+            Neo4jRepository.getNodesByLabel("Site1").flatMap { siteNode =>
               Site1.fromNeo4jGraph(siteNode.getId).map {
                 siteObj => SiteViewFilter.filterInstance(siteObj, ViewLevel.toViewLevel(viewLevel))
 
@@ -1671,35 +1671,53 @@ object Main extends App {
         Site1.delete(siteId)
       }
       onComplete(maybeDelete) {
-        case Success(executionStatus) => complete(StatusCodes.OK, executionStatus.msg)
+        case Success(isDeleted) =>
+          if (isDeleted) {
+            complete(StatusCodes.OK, "Site deleted successfully")
+          }
+          else {
+            complete(StatusCodes.OK, "Error in site deletion")
+          }
         case Failure(ex) => logger.info("Failed to delete entity", ex)
           complete(StatusCodes.BadRequest, "Deletion failed")
       }
     }
-  } ~ path("site" / LongNumber/"instances"/ Segment) {
-    (siteId,instanceId) =>  {
+  } ~ path("site" / LongNumber / "instances" / Segment) {
+    (siteId, instanceId) => {
       delete {
         val mayBeDelete = Future {
           SiteManagerImpl.deleteIntanceFromSite(siteId, instanceId)
         }
         onComplete(mayBeDelete) {
-          case Success(executionStatus) => complete(StatusCodes.OK, executionStatus.msg)
+          case Success(isDeleted) =>
+            if (isDeleted) {
+              complete(StatusCodes.OK, "Instance deleted successfully")
+            }
+            else {
+              complete(StatusCodes.OK, "Error in Instance deletion")
+            }
           case Failure(ex) => logger.error("Failed to delete the insatnce", ex)
             complete(StatusCodes.BadRequest, "Failed to delete instance")
         }
       }
     }
   } ~
-    path("site"/LongNumber/"policies"/Segment){
-      (siteId,policyId) => {
+    path("site" / LongNumber / "policies" / Segment) {
+      (siteId, policyId) => {
         delete {
           val maybeDelete = Future {
             SiteManagerImpl.deletePolicy(policyId)
           }
-          onComplete(maybeDelete){
-            case Success(executionStatus) => complete(StatusCodes.OK,executionStatus.msg)
-            case Failure(ex) => logger.info(s"Error while deleting policy $policyId",ex)
-              complete(StatusCodes.BadRequest,"Error while deleting policy")
+          onComplete(maybeDelete) {
+            case Success(isDeleted) =>
+              if (isDeleted) {
+                complete(StatusCodes.OK, "Policy deleted successfully")
+              }
+              else {
+                complete(StatusCodes.OK, "Error in policy deletion")
+              }
+            case Failure(ex) => logger.info(s"Error while deleting policy $policyId", ex)
+              complete(StatusCodes.BadRequest, "Error while deleting policy")
           }
         }
       }
